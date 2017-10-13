@@ -1,0 +1,104 @@
+buildscript {
+  repositories {
+    maven {
+      url "https://plugins.gradle.org/m2/"
+    }
+  }
+  dependencies {
+    classpath "com.netflix.nebula:nebula-clojure-plugin:4.3.1"
+  }
+}
+
+
+apply plugin: "nebula.clojure"
+
+// Need to apply plugin before settng sourceSets
+
+// sourceSets defines locations of source code
+// when different from the standard maven structure
+
+sourceSets {
+    main {
+        clojure {
+            srcDirs = ["src"]
+        }
+        resources {
+            srcDirs = ["resources"]
+        }
+    }
+    test {
+        clojure {
+            srcDirs = ["test"]
+        }
+    }
+}
+
+
+// project configutations
+
+group = "eu.jr0cket"
+version = "0.1.1"
+
+clojure.aotCompile = true
+
+// application plugin seems to be required to set the mainClassName (error without it set before mainClassName)
+apply plugin: "application"
+
+// The main class name is not being added to the meta-inf/manifest with this line of gradle (lein uberjar does add it though)
+mainClassName = "hello_gradle.core"
+
+
+
+// This syntax is not supported in next version of Gradle (5.x)
+// use the method ConfigurableReport.setDestination(File)
+// test.reports.junitXml.destination = "$buildDir/test-results"
+
+test.reports.junitXml.destination = file("$buildDir/test-results")
+
+// May need to split tests into specific tasks for Gradle (as we are not using lein test :test-group)
+// https://stackoverflow.com/questions/19326527/specify-gradle-report-directory
+// task integrationTest(type: Test) {
+//     testClassesDir = sourceSets.integration.output.classesDir
+//     classpath = sourceSets.integration.runtimeClasspath
+//     maxParallelForks 8
+//     maxHeapSize = "4048m"
+// }
+// integrationTest.reports.html.destination = file("$buildDir/reports/intTests")
+
+
+
+// Maven central repository is required to download org.clojure:clojure
+// otherwise the dependencies below only connect to clojars.org
+
+repositories {
+             mavenCentral()
+}
+
+// Set a value for the clojure version we want to use (didnt seem to work in the dependencies, so hard coded)
+ext.clojureVersion = "1.8.0"
+
+// https://mvnrepository.com/artifact/org.clojure/clojure
+
+
+dependencies {
+             // compile "org.clojure:clojure:1.8.0"   // this dependency definition caused and error
+             compile group: 'org.clojure', name: 'clojure', version: '1.8.0'
+}
+
+compileClojure {
+               classpath = project.files(classpath, project.processResources.outputs)
+}
+
+clojureTest {
+            junit = true
+            classpath = project.files(classpath, project.processTestResources.outputs)
+            classpath = project.files(classpath, project.processResources.outputs)
+}
+
+jar {
+    from 'src/main/clojure'
+}
+
+tasks.uberjar.enabled = true
+tasks.uberjar.zip64 = true
+
